@@ -55,7 +55,6 @@ void setup()
   Serial.println(WiFi.localIP());
 
   client.setServer(mqttServer, mqttPort);
-  //client.publish
   delay(5000);
 }
 void reconnect()
