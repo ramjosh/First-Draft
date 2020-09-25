@@ -25,7 +25,7 @@ long duration;
 int distinCM;
 Servo radarServo;
 float lngExt;           //------
-float latExt;           //------
+float latEx           //------
 const char *mqttLatExt; //-------
 const char *mqttLngExt; //-------
 
