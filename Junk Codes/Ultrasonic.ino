@@ -1,138 +1,124 @@
-#include <Servo.h>
-#include <PubSubClient.h>
-#include <WiFi.h> //#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiServer.h>
-#include <WiFiUdp.h>
-#include <SoftwareSerial.h> //check
-char *ssid = "JAILAVANYA";
-char *password = "imrich325@@DRDO";
 
-const char *mqttServer = "192.168.0.103";
+#include<ESP8266WiFi.h>
+#include<NewPing.h>
+#include<Stepper.h>
+
+const char *ssid = "JAILAVANYA";
+const char *password = " ";
+
+#include<PubSubClient.h>
+
+const char *mqttServer = "192.168.0.108";
 const int mqttPort = 1883;
-const char *mqttUser = "mqtt";
-const char *mqttPassword = "mqtt";
+const char *mqttUser = "mqtt2020";
+const char *mqttPassword = "mqtt2020";
 const char *mqttClientName = "ultrasonic sensor";
+WiFiClient ULTRASONICSENSOR;
+PubSubClient client(ULTRASONICSENSOR);
 
-WiFiClient ultrasonicsensor;
-PubSubClient client(ultrasonicsensor);
+#define ultrangle "home/deg"
+#define ultradist "home/dist"
+#define mqttRadar "home/radarData"
 
-#define mqttTempExt "home/latExt" //change topic and variable
-#define mqttHumExt "home/lngExt"  //change topic and variable
-const int trigPin = 9;
-const int echoPin = 10;
+const float STEPS_PER_REV = 32;
+const float GEAR_RED = 64;
+const float STEPS_PER_OUT_REV = STEPS_PER_REV * GEAR_RED;
+int StepsRequired = 2048;
+Stepper steppermotor(STEPS_PER_REV,8,10,9,11);
 long duration;
-int distinCM;
-Servo radarServo;
-float lngExt;           //------
-float latExt;           //------
-const char *mqttLatExt; //-------
-const char *mqttLngExt; //-------
+int distance;
+const int trigPin = 9;
+const int echoPin = 10; 
+int deg,dist;
+String radarData;
 
 void setup()
 {
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  Serial.begin(9600);
-  radarServo.attach(11);
-
-  // void connectWifi
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  //  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(2000);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-
-  client.setServer(mqttServer, mqttPort);
-  delay(5000);
+pinMode(trigPin, OUTPUT);
+pinMode(echoPin, INPUT);
+Serial.begin(9600);
+Serial.begin(115200);
+Serial.println();
+connect();
 }
+
+void connect()
+{
+  Serial.print("Connecting to ");
+Serial.println(ssid);
+WiFi.mode(WIFI_STA);
+WiFi.disconnect();
+delay(2000);
+WiFi.begin(ssid, password);
+while (WiFi.status() != WL_CONNECTED)
+{
+delay(500);
+Serial.print("=");
+}
+Serial.println("");
+Serial.println("WiFi connected");
+Serial.println("IP address: ");
+Serial.println(WiFi.localIP());
+client.setServer(mqttServer, mqttPort);
+delay(5000);
+}
+
+void getValues()
+{
+digitalWrite(trigPin, LOW);
+delayMicroseconds(2);
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigPin, LOW);
+duration = pulseIn(echoPin, HIGH);
+dist = duration * 0.034 / 2;
+Serial.print("Distance:");
+Serial.println(dist);
+if(dist>=10)
+{
+steppermotor.setSpeed(700); 
+steppermotor.step(StepsRequired);
+deg=StepsRequired/360;
+Serial.println("angle");
+Serial.println(deg);
+}
+}
+
+
 void reconnect()
 {
-  // Loop until we're reconnected
-  //------------How to restart Nodemcu
-  int counter = 0;
-  while (!client.connected())
-  {
-    //    if (counter == 5)
-    //    {
-    //      ESP.restart();
-    //    }
-    //    counter += 1; wait i will do
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-
-    if (client.connect(mqttClientName, mqttUser, mqttPassword))
-    {
-      Serial.println("connected");
-    }
-    else
-    {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
+int counter = 0;
+while (!client.connected())
+{
+if (counter == 5)
+{
+ESP.restart();
 }
+counter += 1;
+Serial.print("Attempting MQTT connection...");
+if (client.connect(mqttClientName, mqttUser, mqttPassword))
+{
+Serial.println("connected");
+}
+else
+{
+Serial.print("failed, rc=");
+Serial.print(client.state());
+Serial.println(" try again in 5 seconds");
+delay(5000);
+}
+}
+}
+
 
 void loop()
 {
-  if (!client.connected())
-  {
-    reconnect();
-  }
-  client.publish(mqttLatExt, String(latExt).c_str(), true); // CHange respective topics
-  client.publish(mqttLngExt, String(lngExt).c_str(), true); //---do--
-  delay(1000);
-
-  for (int i = 0; i <= 360; i++)
-  {
-    radarServo.write(i);
-    delay(50);
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-    duration = pulseIn(echoPin, HIGH);
-    distinCM = duration * 0.034 / 2;
-    Serial.print(i);
-    Serial.print("");
-    Serial.print(distinCM);
-    Serial.print("#");
-  }
-  for (int i = 360; i >= 0; i--)
-  {
-    radarServo.write(i);
-    delay(50);
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-    duration = pulseIn(echoPin, HIGH);
-    distinCM = duration * 0.034 / 2;
-    Serial.print(i);
-    Serial.print("");
-    Serial.print(distinCM);
-    Serial.print("#");
-  }
+if (!client.connected())
+{
+reconnect();
 }
-
-
-// Format to send data to mqtt
-//{"deg": 180,"dis":30}
-//sprintf(data, "{"deg": %s,"dis":%s}", degree, distance);
-//Use stepper motor
+getValues();
+client.publish(mqttRadar,String(radarData).c_str(),true);
+delay(1000);
+sprintf(radarData,"{"deg":"%s","dist":"%s"}",ultrangle,ultradist);
+}
