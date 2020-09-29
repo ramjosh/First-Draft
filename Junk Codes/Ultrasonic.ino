@@ -37,9 +37,10 @@ void setup()
 pinMode(trigPin, OUTPUT);
 pinMode(echoPin, INPUT);
 Serial.begin(9600);
-Serial.begin(115200);
 Serial.println();
 connect();
+client.setServer(mqttServer, mqttPort);
+delay();
 }
 
 void connect()
@@ -59,8 +60,6 @@ Serial.println("");
 Serial.println("WiFi connected");
 Serial.println("IP address: ");
 Serial.println(WiFi.localIP());
-client.setServer(mqttServer, mqttPort);
-delay(5000);
 }
 
 void getValues()
