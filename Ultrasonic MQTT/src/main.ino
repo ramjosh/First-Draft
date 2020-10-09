@@ -1,6 +1,9 @@
 #include <ESP8266WiFi.h>
 #include <Servo.h>
 
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+
 const char *ssid = "JAILAVANYA";
 const char *password = " ";
 
@@ -10,11 +13,15 @@ const char *mqttServer = "192.168.0.108";
 const int mqttPort = 1883;
 const char *mqttUser = "mqtt2020";
 const char *mqttPassword = "mqtt2020";
-const char *mqttClientName = "ultrasonic sensor";
-#define mqttRadar "home/radarData"
+const char *mqttClientName = "ultrasonictemp";
 
-WiFiClient ULTRASONICSENSOR;
-PubSubClient client(ULTRASONICSENSOR);
+
+#define mqttRadar "home/radarData"
+#define mqttTempHum "home/temphum"
+
+
+WiFiClient ULTRASONICTEMP;
+PubSubClient client(ULTRASONICTEMP);
 
 long duration;
 int distance;
@@ -23,6 +30,12 @@ const int echoPin = 10;
 int deg, dist;
 String radarData;
 Servo myservo;
+
+
+#define DHTPIN D2
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+float tempExt, humExt;
 
 void setup()
 {
@@ -33,6 +46,7 @@ void setup()
   connect();
   myservo.attach(9);
   client.setServer(mqttServer, mqttPort);
+  dht.begin();
   delay(100);
 }
 
@@ -80,12 +94,9 @@ void reconnect()
   }
 }
 
-void loop()
+
+  getvalues()
 {
-  if (!client.connected())
-  {
-    reconnect();
-  }
   for (int i = 0; i < 180; i++)
   {
     myservo.write(i);
@@ -119,3 +130,33 @@ void loop()
     client.publish(mqttRadar, String(radarData).c_str(), true);
   }
 }
+void tempValues()
+{
+
+  tempExt = dht.readTemperature();
+  humExt = dht.readHumidity();
+
+  Serial.print("Ext Temp = ");
+  Serial.print(tempExt);
+  Serial.println(" *C");
+
+  Serial.print("Ext Humidity = ");
+  Serial.print(humExt);
+  Serial.println(" %");
+   
+  Serial.println();
+    sprintf(temphum, "{\"tempExt\":\"%s\",\"tempExt\":\"%s\"}", tempExt,humExt);
+    client.publish(mqttTempHum, String(temphum).c_str(), true);
+}
+
+
+void loop()
+{
+  if (!client.connected())
+  {
+    reconnect();
+    getvalues();
+    tempValues();
+  }
+}
+
